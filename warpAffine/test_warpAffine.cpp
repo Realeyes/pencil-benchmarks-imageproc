@@ -9,6 +9,7 @@
 #include "opencl.hpp"
 #include "utility.hpp"
 #include "warpAffine.pencil.h"
+#include "pencil_runtime.h"
 
 namespace
 {
@@ -111,11 +112,15 @@ int main(int argc, char* argv[])
 
     std::cout << "This executable is iterating over all the files which are present in the directory `./pool'. " << std::endl;
 
+    pencil_init();
+
     auto pool = carp::get_pool("pool");
 #ifdef RUN_ONLY_ONE_EXPERIMENT
     time_affine( pool,  1 );
 #else
     time_affine( pool, 45 );
 #endif
+
+    pencil_shutdown();
     return EXIT_SUCCESS;
 } // main

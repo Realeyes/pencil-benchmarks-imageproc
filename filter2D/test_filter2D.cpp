@@ -9,6 +9,7 @@
 #include "opencl.hpp"
 #include "utility.hpp"
 #include "filter2D.pencil.h"
+#include "pencil_runtime.h"
 
 void time_filter2D( const std::vector<carp::record_t>& pool, int iteration )
 {
@@ -97,11 +98,13 @@ int main(int argc, char* argv[])
 
     auto pool = carp::get_pool("pool");
 
+    pencil_init();
+
 #ifdef RUN_ONLY_ONE_EXPERIMENT
     time_filter2D( pool, 1 );
 #else
     time_filter2D( pool, 35 );
 #endif
-
+    pencil_shutdown();
     return EXIT_SUCCESS;
 } // main

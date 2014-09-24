@@ -9,6 +9,7 @@
 #include "opencl.hpp"
 #include "utility.hpp"
 #include "resize.pencil.h"
+#include "pencil_runtime.h"
 
 void time_resize( const std::vector<carp::record_t>& pool, const std::vector<cv::Size>& sizes, int iteration )
 {
@@ -79,6 +80,8 @@ int main(int argc, char* argv[])
 
     auto pool = carp::get_pool("pool");
 
+    pencil_init();
+
 #ifdef RUN_ONLY_ONE_EXPERIMENT
     std::vector<cv::Size> sizes{ {1024, 768} };
     int iteration = 1;
@@ -88,5 +91,6 @@ int main(int argc, char* argv[])
 #endif
 
     time_resize( pool, sizes, iteration );
+    pencil_shutdown();
     return EXIT_SUCCESS;
 } // main

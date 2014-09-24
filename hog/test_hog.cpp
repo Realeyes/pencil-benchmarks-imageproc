@@ -10,6 +10,7 @@
 #include "hog.pencil.h"
 #include "HogDescriptor.h"
 #include "hog.clh"
+#include "pencil_runtime.h"
 
 void time_hog( const std::vector<carp::record_t>& pool, const std::vector<float>& sizes, int num_positions, int repeat )
 {
@@ -60,8 +61,10 @@ void time_hog( const std::vector<carp::record_t>& pool, const std::vector<float>
                                          , &max_work_group_size
                                          , nullptr
                                          );
+                    max_work_group_size = 64;
                     const int work_size_locations = num_positions;
                     const int work_size_x = pow(2, std::ceil(std::log2(max_work_group_size / work_size_locations)/2));  //The square root of the max size/locations, rounded up to power-of-two
+
                     const int work_size_y = max_work_group_size / work_size_locations / work_size_x;
                     if (err != CL_SUCCESS) throw std::runtime_error("Cannot query max work group size.");
 
@@ -157,6 +160,7 @@ void time_hog( const std::vector<carp::record_t>& pool, const std::vector<float>
 int main(int argc, char* argv[])
 {
     try {
+        pencil_init();
         std::cout << "This executable is iterating over all the files which are present in the directory `./pool'. " << std::endl;
 
         auto pool = carp::get_pool("pool");
@@ -166,9 +170,11 @@ int main(int argc, char* argv[])
         time_hog( pool, {16, 32, 64, 128, 192}, 50, 10 );
 #endif
 
+        pencil_shutdown();
         return EXIT_SUCCESS;
     }catch(const std::exception& e) {
         std::cout << e.what() << std::endl;
+        pencil_shutdown();
         return EXIT_FAILURE;
     }
 } // main

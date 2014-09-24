@@ -9,6 +9,7 @@
 #include "opencl.hpp"
 #include "utility.hpp"
 #include "gaussian.pencil.h"
+#include "pencil_runtime.h"
 
 void time_gaussian( const std::vector<carp::record_t>& pool, const std::vector<int>& sizes )
 {
@@ -102,12 +103,16 @@ int main(int argc, char* argv[])
 
     std::cout << "This executable is iterating over all the files which are present in the directory `./pool'. " << std::endl;
 
+    pencil_init();
+
     auto pool = carp::get_pool("pool");
 #ifdef RUN_ONLY_ONE_EXPERIMENT
     time_gaussian( pool, {25} );
 #else
     time_gaussian( pool, {5, 15, 25, 35, 45} );
 #endif
+
+    pencil_shutdown();
 
     return EXIT_SUCCESS;
 } // main

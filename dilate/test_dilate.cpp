@@ -8,6 +8,7 @@
 #include "opencl.hpp"
 #include "utility.hpp"
 #include "dilate.pencil.h"
+#include "pencil_runtime.h"
 
 void time_dilate( const std::vector<carp::record_t>& pool, const std::vector<int>& elemsizes, int iteration )
 {
@@ -79,6 +80,7 @@ int main(int argc, char* argv[])
 {
 
     std::cout << "This executable is iterating over all the files which are present in the directory `./pool'. " << std::endl;
+    pencil_init();
 
     auto pool = carp::get_pool("pool");
 
@@ -87,6 +89,8 @@ int main(int argc, char* argv[])
 #else
     time_dilate( pool, { 3, 5, 7, 9 }, 6 );
 #endif
+
+    pencil_shutdown();
 
     return EXIT_SUCCESS;
 }

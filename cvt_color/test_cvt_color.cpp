@@ -7,6 +7,7 @@
 #include "opencl.hpp"
 #include "utility.hpp"
 #include "cvt_color.pencil.h"
+#include "pencil_runtime.h"
 
 void time_cvtColor( const std::vector<carp::record_t>& pool, size_t iterations)
 {
@@ -66,6 +67,7 @@ void time_cvtColor( const std::vector<carp::record_t>& pool, size_t iterations)
 
 int main(int argc, char* argv[])
 {
+	pencil_init();
 
     std::cout << "This executable is iterating over all the files which are present in the directory `./pool'. " << std::endl;
 
@@ -77,6 +79,7 @@ int main(int argc, char* argv[])
 #endif
 
     time_cvtColor( pool, num_iterations );
+	pencil_shutdown();
 
     return EXIT_SUCCESS;
 }
