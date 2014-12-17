@@ -9,12 +9,13 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-void pencil_hog( int NUMBER_OF_CELLS
-               , int NUMBER_OF_BINS
-               , bool GAUSSIAN_WEIGHTS
-               , bool SPARTIAL_WEIGHTS
-               , bool SIGNED_HOG
-               , const int rows
+#define NUMBER_OF_CELLS 1
+#define NUMBER_OF_BINS 8
+#define GAUSSIAN_WEIGHTS 1
+#define SPARTIAL_WEIGHTS 0
+#define SIGNED_HOG 1
+
+void pencil_hog( const int rows
                , const int cols
                , const int step
                , const uint8_t image[]

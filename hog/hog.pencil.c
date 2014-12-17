@@ -2,12 +2,7 @@
 
 #include <pencil.h>
 
-static void hog_multi( const int NUMBER_OF_CELLS
-                     , const int NUMBER_OF_BINS
-                     , const int gauss
-                     , const int spinterp
-                     , const int _signed
-                     , const int rows
+static void hog_multi( const int rows
                      , const int cols
                      , const int step
                      , const uint8_t image[static const restrict rows][step]
@@ -17,17 +12,6 @@ static void hog_multi( const int NUMBER_OF_CELLS
                      , float hist[static const restrict num_locations][NUMBER_OF_CELLS][NUMBER_OF_CELLS][NUMBER_OF_BINS]    //out
                      ) {
 #pragma scop
-    __pencil_assume(rows > 3);
-    __pencil_assume(cols > 3);
-    __pencil_assume(cols <= step);
-    __pencil_assume(NUMBER_OF_CELLS > 0);
-    __pencil_assume(NUMBER_OF_BINS  > 0);
-    __pencil_assume(num_locations   > 0);
-
-    __pencil_assume(gauss    >= 0);
-    __pencil_assume(spinterp >= 0);
-    __pencil_assume(_signed  >= 0);
-
     #pragma pencil independent
     for (int i = 0; i < num_locations; ++i) {
         float locationx = location[i][0];
@@ -44,41 +28,55 @@ static void hog_multi( const int NUMBER_OF_CELLS
         int maxxi = min((int)floorf(maxx), cols - 2);
         int maxyi = min((int)floorf(maxy), rows - 2);
 
+#if GAUSSIAN_WEIGHTS
+        float sigmax = blck_sizex / 2.0f;
+        float sigmay = blck_sizey / 2.0f;
+        float sigmaSqx = sigmax*sigmax;
+        float sigmaSqy = sigmay*sigmay;
+        float m1p2sigmaSqx = -1.0f / (2.0f * sigmaSqx);
+        float m1p2sigmaSqy = -1.0f / (2.0f * sigmaSqy);
+#endif
         #pragma pencil independent reduction(+:hist[i])
         for (int pointy = minyi; pointy <= maxyi; ++pointy) {
+#if SPARTIAL_WEIGHTS
+            float relative_posy = (pointy - miny) * NUMBER_OF_CELLS / blck_sizey - 0.5f;
+            int cellyi = floor(relative_posy);
+            float yscale1 = relative_posy - (float)(cellyi);
+            float yscale0 = 1.0f - yscale1;
+#endif
+#if GAUSSIAN_WEIGHTS
+            float distancey = (float)(pointy) - locationy;
+            float distanceSqy = distancey * distancey;
+#endif
             #pragma pencil independent reduction(+:hist[i])
             for (int pointx = minxi; pointx <= maxxi; ++pointx) {
+#if SPARTIAL_WEIGHTS
+                float relative_posx = (pointx - minx) * NUMBER_OF_CELLS / blck_sizex - 0.5f;
+                int cellxi = floor(relative_posx);
+                float xscale1 = relative_posx - (float)(cellxi);
+                float xscale0 = 1.0f - xscale1;
+#endif
+#if GAUSSIAN_WEIGHTS
+                float distancex = (float)(pointx) - locationx;
+                float distanceSqx = distancex * distancex;
+#endif
                 //Read the image
                 int temp1 = pointx-1;
                 int temp2 = pointy-1;
                 float mdx = image[pointy][pointx+1] - image[pointy][temp1];
                 float mdy = image[pointy+1][pointx] - image[temp2][pointx];
                 
-                //calculate the magnitude
-                float magnitude = hypotf(mdx, mdy);
+                float magnitude = hypotf(mdx, mdy);   //or = sqrt(mdx*mdx + mdy*mdy);
 
-                //calculate the orientation
-                float orientation;
-                if (_signed) {
-                    orientation = atan2pif(mdy, mdx) / 2.0f;
-                } else {
-                    orientation = atan2pif(mdy, mdx) + 0.5f;
-                }
+#if SIGNED_HOG
+                float orientation = atan2pif(mdy, mdx) / 2.0f;
+#else
+                float orientation = atan2pif(mdy, mdx) + 0.5f;
+#endif
 
-                if (gauss) {
-                    float sigmax = blck_sizex / 2.0f;
-                    float sigmay = blck_sizey / 2.0f;
-                    float sigmaSqx = sigmax*sigmax;
-                    float sigmaSqy = sigmay*sigmay;
-                    float m1p2sigmaSqx = -1.0f / (2.0f * sigmaSqx);
-                    float m1p2sigmaSqy = -1.0f / (2.0f * sigmaSqy);
-                    float distancex = (float)(pointx) - locationx;
-                    float distancey = (float)(pointy) - locationy;
-                    float distanceSqx = distancex * distancex;
-                    float distanceSqy = distancey * distancey;
-                    magnitude *= expf(distanceSqx * m1p2sigmaSqx + distanceSqy * m1p2sigmaSqy);
-                }
-
+#if GAUSSIAN_WEIGHTS
+                magnitude *= expf(distanceSqx * m1p2sigmaSqx + distanceSqy * m1p2sigmaSqy);
+#endif
                 float relative_orientation = orientation * NUMBER_OF_BINS - 0.5f;
                 int bin1 = ceilf(relative_orientation);
                 int bin0 = bin1 - 1;
@@ -87,63 +85,40 @@ static void hog_multi( const int NUMBER_OF_CELLS
                 bin0 = (bin0 + NUMBER_OF_BINS) % NUMBER_OF_BINS;
                 bin1 = (bin1 + NUMBER_OF_BINS) % NUMBER_OF_BINS;
 
-                if (spinterp) {
-                    float relative_posx = (pointx - minx) * NUMBER_OF_CELLS / blck_sizex - 0.5f;
-                    float relative_posy = (pointy - miny) * NUMBER_OF_CELLS / blck_sizey - 0.5f;
-                    int cellxi = floor(relative_posx);
-                    int cellyi = floor(relative_posy);
-
-                    float xscale1 = relative_posx - (float)(cellxi);
-                    float yscale1 = relative_posy - (float)(cellyi);
-                    float xscale0 = 1.0f - xscale1;
-                    float yscale0 = 1.0f - yscale1;
-
-                    __pencil_assume(cellxi < NUMBER_OF_CELLS);
-                    __pencil_assume(cellyi < NUMBER_OF_CELLS);
-                    __pencil_assume(cellxi >= 0);
-                    __pencil_assume(cellyi >= 0);
-                    if (cellyi >= 0 && cellxi >= 0) {
-                        hist[i][cellyi  ][cellxi  ][bin0] += yscale0 * xscale0 * bin_weight0;
-                        hist[i][cellyi  ][cellxi  ][bin1] += yscale0 * xscale0 * bin_weight1;
-                    }
-                    if (cellyi >= 0 && cellxi < NUMBER_OF_CELLS - 1) {
-                        hist[i][cellyi  ][cellxi+1][bin0] += yscale0 * xscale1 * bin_weight0;
-                        hist[i][cellyi  ][cellxi+1][bin1] += yscale0 * xscale1 * bin_weight1;
-                    }
-                    if (cellyi < NUMBER_OF_CELLS - 1 && cellxi >= 0) {
-                        hist[i][cellyi+1][cellxi  ][bin0] += yscale1 * xscale0 * bin_weight0;
-                        hist[i][cellyi+1][cellxi  ][bin1] += yscale1 * xscale0 * bin_weight1;
-                    }
-                    if (cellyi < NUMBER_OF_CELLS - 1 && cellxi < NUMBER_OF_CELLS - 1) {
-                        hist[i][cellyi+1][cellxi+1][bin0] += yscale1 * xscale1 * bin_weight0;
-                        hist[i][cellyi+1][cellxi+1][bin1] += yscale1 * xscale1 * bin_weight1;
-                    }
-                } else if (NUMBER_OF_CELLS == 1) {
-                    hist[i][0][0][bin0] += bin_weight0;
-                    hist[i][0][0][bin1] += bin_weight1;
-                } else {
-                    int cellxi = floor((pointx - minx) * NUMBER_OF_CELLS / blck_sizex);
-                    int cellyi = floor((pointy - miny) * NUMBER_OF_CELLS / blck_sizey);
-
-                    __pencil_assume(cellxi < NUMBER_OF_CELLS);
-                    __pencil_assume(cellyi < NUMBER_OF_CELLS);
-                    __pencil_assume(cellxi >= 0);
-                    __pencil_assume(cellyi >= 0);
-                    hist[i][cellyi][cellxi][bin0] += bin_weight0;
-                    hist[i][cellyi][cellxi][bin1] += bin_weight1;
+#if SPARTIAL_WEIGHTS
+                if (cellyi >= 0 && cellxi >= 0) {
+                    hist[i][cellyi  ][cellxi  ][bin0] += yscale0 * xscale0 * bin_weight0;
+                    hist[i][cellyi  ][cellxi  ][bin1] += yscale0 * xscale0 * bin_weight1;
                 }
+                if (cellyi >= 0 && cellxi < NUMBER_OF_CELLS - 1) {
+                    hist[i][cellyi  ][cellxi+1][bin0] += yscale0 * xscale1 * bin_weight0;
+                    hist[i][cellyi  ][cellxi+1][bin1] += yscale0 * xscale1 * bin_weight1;
+                }
+                if (cellyi < NUMBER_OF_CELLS - 1 && cellxi >= 0) {
+                    hist[i][cellyi+1][cellxi  ][bin0] += yscale1 * xscale0 * bin_weight0;
+                    hist[i][cellyi+1][cellxi  ][bin1] += yscale1 * xscale0 * bin_weight1;
+                }
+                if (cellyi < NUMBER_OF_CELLS - 1 && cellxi < NUMBER_OF_CELLS - 1) {
+                    hist[i][cellyi+1][cellxi+1][bin0] += yscale1 * xscale1 * bin_weight0;
+                    hist[i][cellyi+1][cellxi+1][bin1] += yscale1 * xscale1 * bin_weight1;
+                }
+#elif NUMBER_OF_CELLS == 1
+                hist[i][0][0][bin0] += bin_weight0;
+                hist[i][0][0][bin1] += bin_weight1;
+#else
+                int cellxi = floor((pointx - minx) * NUMBER_OF_CELLS / blck_sizex);
+                int cellyi = floor((pointy - miny) * NUMBER_OF_CELLS / blck_sizey);
+
+                hist[i][cellyi][cellxi][bin0] += bin_weight0;
+                hist[i][cellyi][cellxi][bin1] += bin_weight1;
+#endif
             }
         }
     }
 #pragma endscop
 }
 
-void pencil_hog( const int NUMBER_OF_CELLS
-               , const int NUMBER_OF_BINS
-               , const bool gauss
-               , const bool spinterp
-               , const bool _signed
-               , const int rows
+void pencil_hog( const int rows
                , const int cols
                , const int step
                , const uint8_t image[]
@@ -156,8 +131,7 @@ void pencil_hog( const int NUMBER_OF_CELLS
    for (int ii = 0; ii < num_locations*NUMBER_OF_CELLS*NUMBER_OF_CELLS*NUMBER_OF_BINS; ++ii)
        hist[ii] = 0;
 
-    hog_multi( NUMBER_OF_CELLS, NUMBER_OF_BINS, gauss, spinterp, _signed
-             , rows, cols, step, (const uint8_t(*)[step])image
+    hog_multi( rows, cols, step, (const uint8_t(*)[step])image
              , num_locations, (const float(*)[2])location
              , blck_size
              , (float(*)[NUMBER_OF_CELLS][NUMBER_OF_CELLS][NUMBER_OF_BINS])hist

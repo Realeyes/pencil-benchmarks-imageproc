@@ -80,8 +80,7 @@ void time_hog( const std::vector<carp::record_t>& pool, const std::vector<float>
                 {
                     pen_result.resize(num_positions * HISTOGRAM_BINS, 0.0f);
                     const auto pencil_start = std::chrono::high_resolution_clock::now();
-                    pencil_hog( NUMBER_OF_CELLS, NUMBER_OF_BINS, GAUSSIAN_WEIGHTS, SPARTIAL_WEIGHTS, SIGNED_HOG
-                              , cpu_gray.rows, cpu_gray.cols, cpu_gray.step1(), cpu_gray.ptr<uint8_t>()
+                    pencil_hog( cpu_gray.rows, cpu_gray.cols, cpu_gray.step1(), cpu_gray.ptr<uint8_t>()
                               , num_positions
                               , reinterpret_cast<const float (*)[2]>(locations.data)
                               , reinterpret_cast<const float (*)[2]>(blocksizes.data)
