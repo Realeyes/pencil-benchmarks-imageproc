@@ -25,3 +25,7 @@ CC=gcc
 #Extra, platform-dependent compiler and linker switches:
 USER_FLAGS= -march=native
 USER_LD_FLAGS=
+
+# Argument to PPCG --sizes option. For example
+# PPCG_SIZES="{kernel[i]->block[8,8]}"
+PPCG_SIZES=
