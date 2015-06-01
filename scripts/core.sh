@@ -46,15 +46,15 @@ TEMP_TIME_FILE_3=temp_time_file_3
 LOG_FILE=benchmark_building_log.txt
 CSV_DELIMITER="/"
 
-if [ $MALI_ARCHITECTURE = 0 ]; then
-   OPENCL_LIBRARY="-lOpenCL"
+if [ $USE_ARM_MALI_OPENCL_LIBRARIES = 0 ]; then
+	OPENCL_LIBRARY="-lOpenCL"
 else
-  OPENCL_LIBRARY="-lmali"
+	OPENCL_LIBRARY="-lmali"
 fi
 
-HEADER_FLAGS="-I$PENCIL_INCLUDE_DIR/ -I$OPENCL_INCLUDE_DIR/ -I$OPENCV_INCLUDE_DIR/ -I$BENCHMARK_ROOT_DIRECTORY/include/"
+HEADER_FLAGS="-I$PENCIL_INCLUDE_DIR/ -I$PRL_INCLUDE_DIR/ -I$OPENCL_INCLUDE_DIR/ -I$OPENCV_INCLUDE_DIR/ -I$BENCHMARK_ROOT_DIRECTORY/include/"
 LINKER_FLAGS="-L$PRL_LIB_DIR/ -L$OPENCL_LIB_DIR/ -L$BENCHMARK_ROOT_DIRECTORY/build/ -L$OPENCV_LIB_DIR/"
-LIBRARY_FLAGS="-lprl -lopencv_core -lopencv_imgproc -lopencv_ocl -lopencv_highgui $OPENCL_LIBRARY"
+LIBRARY_FLAGS="-lprl -lopencv_core -lopencv_imgproc -lopencv_ocl -lopencv_highgui $OPENCL_LIBRARY -ltbb -ltbbmalloc"
 
 PENCIL_COMPILER_EXTRA_OPTIONS="--target=opencl -D__PENCIL__ --opencl-include-file=${PENCIL_INCLUDE_DIR}/pencil_opencl.h"
 
@@ -294,6 +294,10 @@ AUTO_TUNE()
 	echo "--------------------------------------------------"
 }
 
+# Setup LD_LIBRARY_PATH
+LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
 echo
 echo "Timings will be generated in build/${OUTPUT_TIME_FILE}.csv"
 
@@ -325,6 +329,12 @@ if [ $ENABLE_TUNING = 1 ]; then
 fi
 
 PREPARE_GENERAL_OUTPUT_FILE;
+
+# Copy the hog.pencil.cl file into the build directory
+if [ ! -d "$BENCHMARK_ROOT_DIRECTORY/build/hog" ]; then
+	mkdir $BENCHMARK_ROOT_DIRECTORY/build/hog
+fi
+cp $BENCHMARK_ROOT_DIRECTORY/hog/hog.opencl.cl $BENCHMARK_ROOT_DIRECTORY/build/hog
 
 id=0
 for ker in ${LIST_OF_KERNELS}; do
